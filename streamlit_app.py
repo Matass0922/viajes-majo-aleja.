@@ -166,7 +166,7 @@ if datos_clima:
             })
             df_resumen.to_excel(writer, index=False, sheet_name="Resumen del Viaje")
         return output.getvalue()
-
+        
     st.subheader("📥 Exportar Datos")
     c1, c2 = st.columns(2)
     with c1:
@@ -175,6 +175,4 @@ if datos_clima:
         st.download_button(label="📊 Descargar Matriz de Precios en Excel", data=generar_excel(), file_name="Viajes_Majo_Aleja_Precios.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.error("No se han podido obtener datos climatológicos del destino seleccionado. Por favor, revisa la ortografía de la ciudad.")
-ile_name="Viajes_Majo_Aleja_Precios.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-else:
-    st.error("No se han podido obtener datos climatológicos del destino seleccionado. Por favor, revisa la ortografía de la ciudad.")
+
