@@ -14,7 +14,6 @@ st.set_page_config(page_title="Viajes Majo Aleja", page_icon="🌍", layout="wid
 # Clases de soporte para la lógica del negocio
 class ConversorDivisas:
     def __init__(self):
-        # Tasas de cambio fijas de respaldo (pueden actualizarse con API en el futuro)
         self.tasas = {"EUR": 1.0, "USD": 1.09, "JPY": 162.50, "GBP": 0.86, "MXN": 18.50}
     
     def convertir(self, cantidad_eur, divisa_destino):
@@ -23,7 +22,6 @@ class ConversorDivisas:
 
 class FiltroSeguridad:
     def __init__(self):
-        # Base de datos local de seguridad por país
         self.seguridad = {
             "japon": "Bajo Riesgo", "tokyo": "Bajo Riesgo", "kyoto": "Bajo Riesgo",
             "francia": "Bajo Riesgo", "paris": "Bajo Riesgo",
@@ -46,7 +44,6 @@ with st.sidebar:
     destino = st.text_input("Ciudad de Destino", "Tokyo")
     presupuesto = st.number_input("Presupuesto Máximo (EUR)", min_value=100, value=1500)
     
-    # Conversor de divisas
     conversor = ConversorDivisas()
     divisa_seleccionada = st.selectbox("Moneda de Visualización", list(conversor.tasas.keys()))
     tasa_actual = conversor.tasas[divisa_seleccionada]
@@ -54,7 +51,6 @@ with st.sidebar:
 # Lógica para obtener coordenadas y clima real mediante API gratuita
 def obtener_datos_viaje(ciudad_destino):
     try:
-        # 1. API Geocoding gratuita para obtener Latitud y Longitud
         url_geo = f"https://open-meteo.com{ciudad_destino}&count=1&language=es&format=json"
         res_geo = requests.get(url_geo).json()
         
@@ -64,7 +60,6 @@ def obtener_datos_viaje(ciudad_destino):
         lat = res_geo["results"][0]["latitude"]
         lon = res_geo["results"][0]["longitude"]
         
-        # 2. API Weather gratuita para obtener predicción y datos climáticos
         url_clima = f"https://open-meteo.com{lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,rain_sum&timezone=auto"
         res_clima = requests.get(url_clima).json()
         
@@ -75,35 +70,29 @@ def obtener_datos_viaje(ciudad_destino):
 datos_clima = obtener_datos_viaje(destino)
 
 if datos_clima:
-    # Procesar métricas climáticas promedio
     temp_max_promedio = np.mean(datos_clima["daily"]["temperature_2m_max"])
     lluvia_total = np.sum(datos_clima["daily"]["rain_sum"])
     
-    # Evaluar seguridad
     seguridad_motor = FiltroSeguridad()
     nivel_riesgo = seguridad_motor.obtener_riesgo(destino)
     
-    # Generar curva de precios simulada para todo el mes (30 días)
     dias = [f"Día {i}" for i in range(1, 31)]
     base_vuelo = 400
     base_hotel = 80
     
     precios_vuelo = [base_vuelo + int(50 * np.sin(i/2)) + int(30 * np.cos(i/3)) for i in range(1, 31)]
     precios_hotel = [base_hotel + int(15 * np.sin(i/2)) for i in range(1, 31)]
-    precios_totales_eur = [v + (h * 5) for v, h in zip(precios_vuelo, precios_hotel)] # Estancia de 5 noches
+    precios_totales_eur = [v + (h * 5) for v, h in zip(precios_vuelo, precios_hotel)]
     
-    # Convertir precios a la divisa seleccionada
     precios_totales_mostrar = [conversor.convertir(p, divisa_seleccionada) for p in precios_totales_eur]
     
     df_precios = pd.DataFrame({"Día": dias, f"Precio Total ({divisa_seleccionada})": precios_totales_mostrar})
     
-    # Encontrar el mejor día (el más barato)
     indice_optimo = np.argmin(precios_totales_eur)
     dia_optimo = dias[indice_optimo]
     precio_optimo_eur = precios_totales_eur[indice_optimo]
     precio_optimo_mostrar = precios_totales_mostrar[indice_optimo]
     
-    # Lógica de equipaje basada en el clima real
     equipaje = ["Pasaporte y documentos", "Cargadores y adaptadores"]
     if temp_max_promedio < 15:
         equipaje.append("Ropa de abrigo pesada y chaqueta térmica")
@@ -115,22 +104,18 @@ if datos_clima:
     else:
         equipaje.append("Gafas de sol")
 
-    # Mostrar la información en Streamlit
     col1, col2, col3 = st.columns(3)
     col1.metric("Temperatura Máx Promedio", f"{temp_max_promedio:.1f} °C")
     col2.metric("Nivel de Seguridad", nivel_riesgo)
     col3.metric(f"Mejor Precio ({divisa_seleccionada})", f"{precio_optimo_mostrar:.2f} {divisa_seleccionada}")
     
-    # Mostrar gráfico interactivo de la curva de precios del mes
     st.subheader(f"📈 Curva de Precios Estimada para el Mes ({divisa_seleccionada})")
     st.line_chart(df_precios.set_index("Día"))
     
-    # Sección de equipaje recomendado
     st.subheader("🎒 Lista de Equipaje Recomendada (Según Clima Real)")
     for item in equipaje:
         st.write(f"- {item}")
         
-    # Funciones para exportar reportes corporativos
     def generar_pdf():
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -150,7 +135,7 @@ if datos_clima:
             ["Día Recomendado para Viajar", dia_optimo]
         ]
         
-        tabla = Table(datos, colWidths=[200, 300])
+        tabla = Table(datos)
         tabla.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (1,0), colors.blue),
             ('TEXTCOLOR', (0,0), (1,0), colors.whitesmoke),
@@ -182,12 +167,14 @@ if datos_clima:
             df_resumen.to_excel(writer, index=False, sheet_name="Resumen del Viaje")
         return output.getvalue()
 
-    # Botones de descarga en la interfaz gráfica
     st.subheader("📥 Exportar Datos")
     c1, c2 = st.columns(2)
     with c1:
         st.download_button(label="📄 Descargar Itinerario en PDF", data=generar_pdf(), file_name="Viajes_Majo_Aleja_Reporte.pdf", mime="application/pdf")
     with c2:
         st.download_button(label="📊 Descargar Matriz de Precios en Excel", data=generar_excel(), file_name="Viajes_Majo_Aleja_Precios.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+else:
+    st.error("No se han podido obtener datos climatológicos del destino seleccionado. Por favor, revisa la ortografía de la ciudad.")
+ile_name="Viajes_Majo_Aleja_Precios.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.error("No se han podido obtener datos climatológicos del destino seleccionado. Por favor, revisa la ortografía de la ciudad.")
